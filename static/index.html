@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overnight Brain</title>
+    <style>
+      :root {
+        --bg: #14182b;
+        --panel: #1c2138;
+        --line: #2c3352;
+        --text: #ece7dc;
+        --muted: #9da3bd;
+        --lamp: #f2b45a;
+        --lamp-ink: #2a1d07;
+        --ok: #8fcfa4;
+        --err: #ef9a8e;
+        --radius: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.55 ui-sans-serif,
+          -apple-system,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 32px 16px 64px;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 16px;
+        margin-bottom: 28px;
+      }
+      h1 {
+        font-family: ui-serif, Georgia, serif;
+        font-weight: 600;
+        font-size: 2rem;
+        margin: 0;
+      }
+      .tag {
+        color: var(--muted);
+        margin: 0;
+      }
+      .status {
+        margin-left: auto;
+        font-size: 0.85rem;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .dot.ok {
+        background: var(--ok);
+      }
+      .dot.err {
+        background: var(--err);
+      }
+      .dot.busy {
+        background: var(--lamp);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1.15fr;
+        gap: 20px;
+      }
+      @media (max-width: 820px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .status {
+          margin-left: 0;
+        }
+      }
+
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+      }
+      h2 {
+        font-family: ui-serif, Georgia, serif;
+        font-weight: 600;
+        font-size: 1.25rem;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0 0 16px;
+      }
+
+      .kinds {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .kind {
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--text);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+      }
+      .kind[aria-pressed="true"] {
+        background: var(--lamp);
+        color: var(--lamp-ink);
+        border-color: var(--lamp);
+      }
+      textarea {
+        width: 100%;
+        min-height: 110px;
+        resize: vertical;
+        padding: 12px;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font: inherit;
+      }
+      textarea:focus,
+      button:focus-visible {
+        outline: 2px solid var(--lamp);
+        outline-offset: 2px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 16px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--lamp);
+        color: var(--lamp-ink);
+      }
+      .btn.quiet {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        font-weight: 500;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      ul.queue {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0 0;
+        display: grid;
+        gap: 8px;
+      }
+      .queue li {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: start;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      .pill {
+        font-size: 0.72rem;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .pill.working {
+        color: var(--lamp);
+        border-color: var(--lamp);
+      }
+      .pill.done {
+        color: var(--ok);
+        border-color: var(--ok);
+      }
+      .pill.error {
+        color: var(--err);
+        border-color: var(--err);
+      }
+      .qtext {
+        overflow-wrap: anywhere;
+        font-size: 0.92rem;
+      }
+      .x {
+        background: none;
+        border: 0;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        padding: 0 4px;
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 0.92rem;
+        padding: 8px 0;
+      }
+
+      .summary {
+        font-family: ui-serif, Georgia, serif;
+        font-size: 1.1rem;
+        border-left: 3px solid var(--lamp);
+        padding-left: 14px;
+        margin: 0 0 18px;
+      }
+      details.result {
+        border-top: 1px solid var(--line);
+        padding: 12px 0;
+      }
+      details.result summary {
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+      }
+      details.result summary::-webkit-details-marker {
+        display: none;
+      }
+      .rlabel {
+        color: var(--lamp);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
+      .rq {
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .rbody {
+        margin: 10px 0 4px;
+        overflow-wrap: anywhere;
+      }
+      .rbody p {
+        margin: 0 0 10px;
+      }
+      .rbody h3 {
+        font-size: 1rem;
+        margin: 16px 0 6px;
+      }
+      .rbody ul,
+      .rbody ol {
+        margin: 0 0 10px;
+        padding-left: 22px;
+      }
+      .rbody li {
+        margin-bottom: 4px;
+      }
+      .rbody strong {
+        color: #fff;
+      }
+      .rmeta {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 28px;
+      }
+      code {
+        background: var(--bg);
+        padding: 1px 6px;
+        border-radius: 6px;
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Overnight Brain</h1>
+        <p class="tag">Hand it off tonight. Read it with your coffee.</p>
+        <div class="status">
+          <span class="dot" id="dot"></span
+          ><span id="statusText">Checking…</span>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section aria-labelledby="h-hand">
+          <h2 id="h-hand">Hand it off</h2>
+          <p class="sub">
+            Drop it here and forget about it. A model on this computer works
+            through the list while you sleep.
+          </p>
+          <div
+            class="kinds"
+            id="kinds"
+            role="group"
+            aria-label="Kind of task"
+          ></div>
+          <label for="text" class="note" id="hint"></label>
+          <textarea id="text" placeholder="Type or paste anything…"></textarea>
+          <div class="row">
+            <button class="btn" id="add">Add to tonight's list</button>
+            <span class="note" id="addNote"></span>
+          </div>
+
+          <ul class="queue" id="queue"></ul>
+          <div class="row">
+            <button class="btn quiet" id="run">Start thinking now</button>
+            <span class="note"
+              >Or schedule it:
+              <code>python worker.py --start-at 01:00</code></span
+            >
+          </div>
+        </section>
+
+        <section aria-labelledby="h-digest">
+          <h2 id="h-digest">Morning digest</h2>
+          <p class="sub" id="digestWhen">
+            Nothing yet. Add a few things and let it work overnight.
+          </p>
+          <div id="digest"></div>
+        </section>
+      </div>
+
+      <footer>
+        Runs entirely on your machine with open-weight models via Ollama.
+        Nothing you type leaves this computer.
+      </footer>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let kinds = {},
+        selected = "ask",
+        polling = null;
+
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      // Small Markdown renderer for model answers. Escapes HTML first, so it's safe.
+      function md(src) {
+        src = String(src ?? "")
+          .replace(/\$\\(rightarrow|Rightarrow|to)\$/g, "→")
+          .replace(/\$\\(leftarrow|Leftarrow)\$/g, "←");
+        const inline = (s) =>
+          s
+            .replace(/`([^`]+)`/g, "<code>$1</code>")
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\w)/g, "$1<em>$2</em>");
+        let html = "",
+          list = null,
+          para = [];
+        const flushPara = () => {
+          if (para.length) {
+            html += `<p>${inline(para.join("<br>"))}</p>`;
+            para = [];
+          }
+        };
+        const closeList = () => {
+          if (list) {
+            html += `</${list}>`;
+            list = null;
+          }
+        };
+        for (const raw of esc(src).split(/\r?\n/)) {
+          const line = raw.trim();
+          let m;
+          if (!line) {
+            flushPara();
+            continue;
+          }
+          if (
+            (m = line.match(/^#{1,6}\s+(.*)$/)) ||
+            (m = line.match(/^\*\*([^*]+)\*\*:?$/))
+          ) {
+            flushPara();
+            closeList();
+            html += `<h3>${inline(m[1])}</h3>`;
+            continue;
+          }
+          if ((m = line.match(/^[-*•]\s+(.*)$/))) {
+            flushPara();
+            if (list !== "ul") {
+              closeList();
+              html += "<ul>";
+              list = "ul";
+            }
+            html += `<li>${inline(m[1])}</li>`;
+            continue;
+          }
+          if ((m = line.match(/^(\d+)[.)]\s+(.*)$/))) {
+            flushPara();
+            if (list !== "ol") {
+              closeList();
+              html += `<ol start="${m[1]}">`;
+              list = "ol";
+            }
+            html += `<li>${inline(m[2])}</li>`;
+            continue;
+          }
+          closeList();
+          para.push(line);
+        }
+        flushPara();
+        closeList();
+        return html;
+      }
+      const when = (iso) =>
+        iso
+          ? new Date(iso).toLocaleString([], {
+              weekday: "long",
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          : "";
+
+      async function api(path, opts = {}) {
+        const res = await fetch(path, {
+          headers: { "Content-Type": "application/json" },
+          ...opts,
+        });
+        if (!res.ok)
+          throw new Error(
+            (await res.json().catch(() => ({}))).detail || res.statusText,
+          );
+        return res.json();
+      }
+
+      function renderKinds() {
+        $("kinds").innerHTML = Object.entries(kinds)
+          .map(
+            ([k, v]) =>
+              `<button class="kind" data-k="${k}" aria-pressed="${k === selected}">${esc(v.label)}</button>`,
+          )
+          .join("");
+        $("hint").textContent = kinds[selected]?.hint || "";
+      }
+
+      async function loadStatus() {
+        const s = await api("/api/status");
+        const dot = $("dot");
+        dot.className = "dot";
+        let msg;
+        if (s.worker_running) {
+          dot.classList.add("busy");
+          msg = `Thinking with ${s.model}…`;
+        } else if (s.fake) {
+          dot.classList.add("ok");
+          msg = "Test mode (fake model)";
+        } else if (!s.ollama) {
+          dot.classList.add("err");
+          msg = "Ollama isn't running";
+        } else if (!s.model_ready) {
+          dot.classList.add("err");
+          msg = `Run: ollama pull ${s.model}`;
+        } else {
+          dot.classList.add("ok");
+          msg = `${s.model} ready`;
+        }
+        $("statusText").textContent = msg;
+        $("run").disabled = s.worker_running || !(s.counts.queued > 0);
+        return s;
+      }
+
+      async function loadQueue() {
+        const tasks = await api("/api/tasks");
+        const open = tasks
+          .filter((t) => t.status !== "done")
+          .concat(tasks.filter((t) => t.status === "done").slice(0, 3));
+        $("queue").innerHTML = open.length
+          ? open
+              .map(
+                (t) => `
+    <li>
+      <span class="pill ${t.status}">${t.status === "working" ? "thinking" : t.status}</span>
+      <span class="qtext">${esc(t.text.length > 140 ? t.text.slice(0, 140) + "…" : t.text)}</span>
+      ${t.status === "queued" ? `<button class="x" data-del="${t.id}" aria-label="Remove">×</button>` : "<span></span>"}
+    </li>`,
+              )
+              .join("")
+          : `<li class="empty" style="border:0">Tonight's list is empty.</li>`;
+      }
+
+      async function loadDigest() {
+        const d = await api("/api/digest");
+        if (!d) return;
+        $("digestWhen").textContent = `Finished ${when(d.created_at)}`;
+        $("digest").innerHTML =
+          `<p class="summary">${esc(d.summary).replace(/\*\*/g, "")}</p>` +
+          d.tasks
+            .map(
+              (t, i) => `
+    <details class="result" ${i === 0 ? "open" : ""}>
+      <summary><span class="rlabel">${esc(kinds[t.kind]?.label || t.kind)}</span>
+        <span class="rq">${esc(t.text.length > 90 ? t.text.slice(0, 90) + "…" : t.text)}</span></summary>
+      <div class="rbody">${md(t.result)}</div>
+      <div class="rmeta">${t.seconds ?? "?"}s of thinking</div>
+    </details>`,
+            )
+            .join("");
+      }
+
+      async function refresh() {
+        try {
+          const s = await loadStatus();
+          await Promise.all([loadQueue(), loadDigest()]);
+          if (s.worker_running && !polling)
+            polling = setInterval(refresh, 3000);
+          if (!s.worker_running && polling) {
+            clearInterval(polling);
+            polling = null;
+          }
+        } catch (e) {
+          $("statusText").textContent = "Can't reach the app";
+        }
+      }
+
+      $("kinds").addEventListener("click", (e) => {
+        const k = e.target.dataset.k;
+        if (!k) return;
+        selected = k;
+        renderKinds();
+        $("text").focus();
+      });
+
+      $("add").addEventListener("click", async () => {
+        const text = $("text").value.trim();
+        if (!text) {
+          $("addNote").textContent = "Type something first.";
+          return;
+        }
+        try {
+          await api("/api/tasks", {
+            method: "POST",
+            body: JSON.stringify({ kind: selected, text }),
+          });
+          $("text").value = "";
+          $("addNote").textContent = "Added. You can stop thinking about it.";
+          refresh();
+        } catch (e) {
+          $("addNote").textContent = e.message;
+        }
+      });
+
+      $("queue").addEventListener("click", async (e) => {
+        const id = e.target.dataset.del;
+        if (!id) return;
+        try {
+          await api(`/api/tasks/${id}`, { method: "DELETE" });
+        } catch (err) {
+          alert(err.message);
+        }
+        refresh();
+      });
+
+      $("run").addEventListener("click", async () => {
+        await api("/api/run", { method: "POST" });
+        setTimeout(refresh, 400);
+      });
+
+      (async () => {
+        kinds = await api("/api/kinds");
+        renderKinds();
+        refresh();
+      })();
+    </script>
+  </body>
+</html>
